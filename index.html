@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Do - Official</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background: #f4f7f6; }
+
+        #authOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #6200ee; display: flex; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+        .auth-card { background: white; width: 100%; max-width: 350px; padding: 30px; border-radius: 25px; text-align: center; }
+
+        #mainApp { display: none; padding-bottom: 80px; }
+        .header { background: #6200ee; color: white; padding: 20px; text-align: center; font-size: 24px; font-weight: bold; border-radius: 0 0 25px 25px; }
+        
+        .page { display: none; padding: 20px; animation: slideIn 0.3s ease; }
+        .active { display: block; }
+        .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        
+        .offer-card { display: flex; align-items: center; background: white; padding: 15px; border-radius: 15px; margin-bottom: 12px; border-left: 6px solid #6200ee; cursor: pointer; }
+        .reward-tag { background: #e8f5e9; color: #2e7d32; padding: 5px 10px; border-radius: 8px; font-weight: bold; font-size: 14px; }
+        
+        .btn-start { background: #6200ee; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; }
+        
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #eee; }
+        .nav-item { cursor: pointer; color: #999; font-weight: 600; font-size: 14px; flex: 1; text-align: center; }
+        .active-nav { color: #6200ee; }
+
+        input { width: 100%; padding: 15px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; outline: none; }
+        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div id="authOverlay">
+    <div class="auth-card">
+        <h2 id="authTitle" style="color: #6200ee; margin-bottom: 10px;">Smart Do</h2>
+        <input type="email" id="authEmail" placeholder="Email">
+        <input type="password" id="authPass" placeholder="Password">
+        <button class="btn-start" onclick="handleAuth()" id="authBtn">Login</button>
+        <p style="margin-top: 15px; font-size: 13px;">
+            <span id="authMsg">Don't have an account?</span> 
+            <span style="color:#6200ee; font-weight:bold; cursor:pointer;" onclick="toggleAuth()" id="toggleBtn">Signup</span>
+        </p>
+    </div>
+</div>
+
+<div id="mainApp">
+    <div class="header" id="festHeader">Smart Do</div>
+
+    <div id="home" class="page active">
+        <div class="card" style="text-align: center;">
+            <p style="color: #666;">Total Balance</p>
+            <h1 style="font-size: 40px; color: #2e7d32;">₹<span id="userBalance">0.00</span></h1>
+        </div>
+        <h3 id="festTitle">Daily Videos</h3>
+        <div id="adBox" style="margin-top: 10px;"></div>
+    </div>
+
+    <div id="tasks" class="page">
+        <div class="card" style="background: #6200ee; color: white;">
+            <h2>Bonus Tasks 🔥</h2>
+            <p>Admin dwara diye gaye naye tasks poore karein.</p>
+        </div>
+        <div class="offer-card" id="dynamicTaskBox">
+            <div style="flex:1"><h4 id="taskName">Install App</h4><p style="font-size:12px;color:#777">Click to start</p></div>
+            <div style="text-align:right"><button class="btn-start" style="padding:5px 15px" onclick="openDynamicTask()">GO</button></div>
+        </div>
+    </div>
+
+    <div id="invite" class="page">
+        <div class="card" style="text-align: center;">
+            <img src="https://cdn-icons-png.flaticon.com/512/2583/2583158.png" width="80">
+            <h2 style="margin: 10px 0;">Refer & Earn</h2>
+            <div id="referCodeBox" style="background:#f0f0f0; padding:15px; border:2px dashed #6200ee; font-size:20px; font-weight:bold; border-radius:10px;">REFER5</div>
+            <p style="margin-top:10px; color:#777">Invite par milenge ₹<span id="refBonusAmt">5</span></p>
+            <button class="btn-start" style="margin-top:15px; background: #25D366;" onclick="shareWhatsApp()">Invite via WhatsApp</button>
+        </div>
+    </div>
+
+    <div id="profile" class="page">
+        <div class="card">
+            <h3 style="margin-bottom: 10px;">Withdraw Earnings</h3>
+            <input type="text" id="upiId" placeholder="Enter UPI ID">
+            <input type="number" id="amount" placeholder="Minimum ₹100">
+            <button class="btn-start" style="background:#2ecc71" onclick="handleWithdraw()">Withdraw Now</button>
+        </div>
+        <button onclick="auth.signOut()" class="btn-start" style="background: #ff4757;">Logout</button>
+    </div>
+
+    <div class="bottom-nav">
+        <div class="nav-item active-nav" onclick="changePage('home', this)">Home</div>
+        <div class="nav-item" onclick="changePage('tasks', this)">Tasks</div>
+        <div class="nav-item" onclick="changePage('invite', this)">Invite</div>
+        <div class="nav-item" onclick="changePage('profile', this)">Profile</div>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9j9XPIgN_3aWZ1Bs3OAQkST4teX3yfdQ",
+      authDomain: "smart-do-6c508.firebaseapp.com",
+      projectId: "smart-do-6c508",
+      storageBucket: "smart-do-6c508.firebasestorage.app",
+      messagingSenderId: "903731706244",
+      appId: "1:903731706244:web:ed008c5769b253613e45d1",
+      databaseURL: "https://smart-do-6c508-default-rtdb.firebaseio.com/"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let balance = 0, adReward = 1, taskUrl = "#", refAmt = 5;
+    let isLoginMode = true;
+
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            document.getElementById('authOverlay').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            loadData(user.uid);
+            syncSettings();
+        } else {
+            document.getElementById('authOverlay').style.display = 'flex';
+            document.getElementById('mainApp').style.display = 'none';
+        }
+    });
+
+    function syncSettings() {
+        db.ref('appSettings').on('value', snap => {
+            const s = snap.val();
+            if(s) {
+                document.getElementById('festHeader').innerText = s.festName || "Smart Do";
+                document.getElementById('festTitle').innerText = (s.festName || "Daily") + " Videos";
+                adReward = parseFloat(s.adVal) || 1;
+                taskUrl = s.taskUrl || "#";
+                refAmt = s.refVal || 5;
+                document.getElementById('refBonusAmt').innerText = refAmt;
+                renderAds();
+            }
+        });
+    }
+
+    function loadData(uid) {
+        db.ref('users/' + uid + '/balance').on('value', snap => {
+            balance = snap.val() || 0;
+            document.getElementById('userBalance').innerText = balance.toFixed(2);
+        });
+    }
+
+    function renderAds() {
+        const adBox = document.getElementById('adBox');
+        adBox.innerHTML = "";
+        for(let i=1; i<=10; i++) {
+            let b = document.createElement('div');
+            b.className = "offer-card";
+            b.innerHTML = `<b>🎬 Video Ad #${i}</b> <span style="margin-left:auto" class="reward-tag">₹${adReward}</span>`;
+            b.onclick = () => {
+                alert("Playing Ad..."); 
+                setTimeout(() => {
+                    db.ref('users/' + auth.currentUser.uid).update({ balance: balance + adReward });
+                    alert("Reward Added!");
+                }, 2000);
+            };
+            adBox.appendChild(b);
+        }
+    }
+
+    function handleAuth() {
+        const e = document.getElementById('authEmail').value, p = document.getElementById('authPass').value;
+        if(isLoginMode) auth.signInWithEmailAndPassword(e, p).catch(err => alert(err.message));
+        else auth.createUserWithEmailAndPassword(e, p).then(res => db.ref('users/' + res.user.uid).set({balance: 0})).catch(err => alert(err.message));
+    }
+
+    function toggleAuth() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('authTitle').innerText = isLoginMode ? "Login" : "Signup";
+        document.getElementById('authBtn').innerText = isLoginMode ? "Login" : "Signup";
+        document.getElementById('toggleBtn').innerText = isLoginMode ? "Login" : "Signup";
+    }
+
+    function changePage(id, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active-nav'));
+        el.classList.add('active-nav');
+    }
+
+    function openDynamicTask() { window.open(taskUrl, '_blank'); }
+
+    function handleWithdraw() {
+        const upi = document.getElementById('upiId').value, amt = parseFloat(document.getElementById('amount').value);
+        if(amt >= 100 && balance >= amt) {
+            db.ref('withdrawals').push({ uid: auth.currentUser.uid, upi, amt, status: 'pending', date: new Date().toLocaleString() });
+            db.ref('users/' + auth.currentUser.uid).update({ balance: balance - amt });
+            alert("Sent!");
+        } else alert("Invalid Amount/Balance");
+    }
+
+    // --- WhatsApp Share Function ---
+    function shareWhatsApp() {
+        const code = document.getElementById('referCodeBox').innerText;
+        const text = "Download *Smart Do* App and Earn Daily! 💸\n\nUse my Refer Code: *" + code + "*\n\nSignup now and get ₹" + refAmt + " bonus!";
+        const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
+        window.open(url, '_blank');
+    }
+</script>
+</body>
+</html>
